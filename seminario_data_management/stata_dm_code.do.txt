@@ -1,0 +1,336 @@
+*********** CODEFILE FOR STATA DATA MANAGEMENT ************
+
+*** SOLUTIONS TO EXERCISES ARE AT THE BOTTOM OF THIS FILE ***
+
+***** PRELIMINARIES *****
+
+*load workshop data set
+use "https://stats.oarc.ucla.edu/wp-content/uploads/2022/02/dm_data.dta", clear
+
+*open the browser
+browse
+
+
+***** INSPECTING VARIABLES *****
+
+*summary stats for all numeric variables
+summarize
+
+*1-way frequency table with missing as category (no missing values for married, so none displayed)
+tab married, miss
+*2-way crosstab 
+tab married smokinghx
+
+*detailed info about all variables
+codebook
+
+
+***** CREATING VARIABLES *****
+
+*generate a difference
+* -99 values in test1 and test2 make this meaningless, though
+gen testdiff = test2 - test1
+summ testdiff // remember to check your work
+
+*table of functions
+help functions
+
+*generate with functions
+*running sum of remission
+gen sumremission = sum(remission)
+browse sumremission remission // can browse just selected variables to focus view
+*browse all variables again
+browse   
+
+*egen: extended generation
+*mean of tests
+egen testmean = rowmean(test1 test2) // again, -99 
+summ testmean
+*create 3-category pain variable: [1-3] [4-6] [7-9]
+egen paincat = cut(pain), at(1,4,7,10) label // at specifies left-hand limits, except last value is maximum
+tab paincat, miss // labeled categories
+tab paincat, nolabel // unlabeled categories
+tab paincat pain // 2-way cross-tab with original pain variable
+
+
+***** SELECTING OBSERVATIONS AND VARIABLES *****
+
+*if clause follows command, but precedes comma and options
+summ age if married == 1, detail
+
+*logical and relational operators
+*cross-tab married sex if age > 60 & remission==1, add row percentages
+tab married sex if (age > 40) & (remission == 1), row
+
+*replace and if
+*fix testdiff so that it's missing if either test1 or test2 are missing
+replace testdiff = . if (test1 == -99) | (test2 == -99)
+summ testdiff // minimum seems better now
+
+*recode paincat category 2 to 1 (so levels will be 0/1)
+tab paincat, nolabel // before, without labels
+recode paincat (2=1)
+tab paincat, nolabel // after, without labels
+tab paincat // after, with labels
+
+*drop if:  drop observations with bad age value
+summ age // someone has an age value that is too high
+drop if age > 120
+
+
+* save progress
+save dm1, replace
+
+***** MISSING DATA *****
+
+*load progress
+use dm1, clear
+
+*overview of Stata missing values
+help missing
+
+*table of missing values across all variables
+misstable summarize
+
+*detecting missing data codes with summarize and box plots
+summ lungcapacity remission
+graph box lungcapacity remission // lungcapacity has extreme values
+
+*mvdecode 
+*convert -99 to . and -98 to .a to missing values for all variables
+mvdecode _all, mv(-99=. \ -98=.a)
+graph box lungcapacity remission // looks better now
+misstable summarize // missing values table is more populated now
+
+*missing()
+* eligible=1 is lungcapacity is not any kind of missing
+gen eligible = 0
+replace eligible = 1 if !missing(lungcapacity)
+
+*CAREFUL: missing values are very large numbers
+gen hightest1 = 0
+replace hightest1 = 1 if test1 > 10 // test1 > 10 is TRUE if test1 == . 
+browse test1 hightest1 // we see that hightest1=1 is test is missing
+replace hightest = . if test1 == . // the fix
+
+*browse all variables again
+browse
+
+
+******* BEGIN EXERCISE 1 ***********
+* 1) use egen (with romiss()) to create a variable called num_miss that counts the number of missing among the variables lungcapacity, test1, and test2
+* 2) browse num_miss, lungcapacity, test1, and test2 to check your work
+* 3) create a variable called anymiss that is 1 if any of the 3 tests are missing, 0 otherwise
+
+******* END EXERCISE 1 ***********
+
+
+
+
+
+***** DATE VARIABLES *****
+
+*overview of Stata dates
+help datetime
+
+*codebook on our discharge date variable
+codebook dis_date  // string dates
+
+
+*date() to convert string to numeric dates
+*  with MDY mask (month-day-year)
+gen num_dis_date = date(dis_date, "MDY")
+
+*format numeric date to be readable
+format num_dis_date %td
+
+
+*date arithmetic
+gen day_before_discharge = num_dis_date - 1
+format day_before_discharge %td
+
+*extract year from date using year()
+gen dis_year = year(num_dis_date)
+
+***** STRING VARIABLES *****
+
+* "" is missing for string variables
+codebook smokinghx // smokinghx is a string variable with -99 codes
+replace smokinghx = "" if smokinghx == "-99"
+tab smokinghx, miss
+codebook sex // sex also has data error 12.2
+replace sex = "" if sex == "12.2"
+
+*Stata string functions
+help string functions
+
+*strtrim() to remove all leading and trailing whitespace
+*hospital has extra whitespace
+tab hospital, miss
+replace hospital = strtrim(hospital)
+tab hospital
+
+*substr() to extract last 2 characters of hospital variable
+gen city = substr(hospital, -2, 2)  // starting from 2nd to last, length 2
+
+* concatenate hospital and city, insert comma and space between
+gen hospcity = hospital + ", " + city
+
+* encode: create numeric version of hospital called hospnum with labels
+encode hospital, gen(hospnum)
+tab hospnum
+tab hospnum, nolabel
+
+* destring, convert string to numeric
+codebook wbc  // wbc is a string variable but should be numeric
+browse wbc // contains values "not assessed", which should be missing
+replace wbc = "" if wbc == "not assessed"
+* now can convert wbc to numeric, overwriting original variable
+destring wbc, replace
+
+*browse all vars
+browse
+
+
+* save progress
+save dm2, replace
+
+
+******* BEGIN EXERCISE 2 ***********
+* The admission date is split into 3 string variables: admit_day, admit_month, and admit_year
+* 1) concatenate those into a single date string variable called "admit_date", inserting "-" between components (1-1-2021)
+* 2) convert string admit_date into a numeric date variable called "num_admit_date"
+* 3) format num_admit_date so that it is readable
+* 3) create a length of stay variable, "los", that counts the days between admission (num_admit_date)
+*     and discharge (num_dis_date)
+
+******* END EXERCISE 2 ***********
+
+
+
+***** APPENDING DATA SETS *****
+
+* take a look at dataset to append
+use "https://stats.oarc.ucla.edu/wp-content/uploads/2022/02/dm_append.dta", clear
+browse
+codebook wbc // NOTE: wbc is still string in this data set
+
+* reload original data in progress
+use dm2, clear
+
+* append data set
+append using "https://stats.oarc.ucla.edu/wp-content/uploads/2022/02/dm_append.dta"
+
+*save appended data sets
+save dm3, replace
+
+***** MERGING DATA SETS *****
+
+*look at dataset of doctor info to merge in
+use "https://stats.oarc.ucla.edu/wp-content/uploads/2022/02/dm_doctor_data.dta", clear
+browse // each docid only appears once
+
+*reload original data in progress
+use dm3, clear
+
+*the master data has each docid appear multiple times, while in using data, each docid appears once
+* this is merge m:1
+merge m:1 docid using "https://stats.oarc.ucla.edu/wp-content/uploads/2022/02/dm_doctor_data.dta"  // one docid does not merge correctly
+
+* save progress
+save dm4, replace
+ 
+
+
+***** LOOPING *****
+
+*load progress
+use dm4, clear
+
+* loop over variables smokinghx, sex
+*  each time: 
+*    1) encode variable and generate new variable with prefix num_ (e.g. num_smokinghx)
+*    2) apply variable label to new variable
+foreach var of varlist smokinghx sex {
+    encode `var', gen(num_`var')  // wherever `var' appears, replace with contents of var
+	label var num_`var' "numeric `var'"
+}
+
+* new variables, with variable labels and value labels
+codebook num_smokinghx num_sex
+
+* creaty dummy indicators for age > 30, age > 40, age>50
+forvalues i = 30(10)50 {   
+    gen age_over_`i' = 0    
+	replace age_over_`i' = 1 if age > `i'
+	replace age_over_`i' = . if age == .
+}
+
+* summarize all variables that start with age
+summ age*
+
+
+***** PROCESSING DATA BY GROUP *****
+
+*sort data by grouping variable first
+*  using numeric version of hospital as grouping variable first
+sort hospnum
+
+*by groupvar: command
+by hospnum: egen meanpain_hosp = mean(pain)
+
+*now repeat, but group by docid and do it in one step
+bysort docid: egen meanpain_doc = mean(pain)
+
+** for the next few commands, we are going to treat the data as longitudinal
+* sort by docid and time (numeric discharge date)
+sort docid num_dis_date
+
+* get first and last age value per docid
+by docid: gen first_age = age[1]
+by docid: gen last_age = age[_N]  // _N is number of observations for current docid
+browse docid age first_age last_age
+
+* lagged age per docid
+by docid: gen lag_age = age[_n-1] // _n is current observation
+
+* running sums and totals by docid
+by docid: gen sum_eligible = sum(eligible)
+by docid: gen tot_eligible = sum_eligible[_N]  // last value is the final total
+
+browse docid eligible sum_eligible tot_eligible
+
+
+******* BEGIN EXERCISE 3 ***********
+* 1) write a foreach loop to create variables that are the mean wbc, test1, and test2 values BY docid; call them mean_xxx, where xxx is the name of the old variable
+* 2) label these new variables "mean xxx by docid", where xxx is the old name of the variable
+* 3) summarize each new variable
+
+
+******* END EXERCISE 3 ***********
+
+
+
+
+****** SOLUTIONS TO EXERCISES
+
+***** EXERCISE 1 *****
+egen num_miss = rowmiss(lungcapacity test1 test2)
+browse num_miss lungcapacity test1 test2
+gen anymiss = num_miss
+replace anymiss = 1 if num_miss == 2
+tab anymiss num_miss
+
+***** EXERCISE 2 *****
+gen admit_date = admit_month + "-" + admit_day + "-" + admit_year
+gen num_admit_date = date(admit_date, "MDY")
+format num_admit_date %td
+gen los = num_dis_date - num_admit_date
+
+***** EXERCISE 3 *****
+sort docid
+foreach var of varlist wbc test1 test2 {
+    by docid: egen mean_`var' = mean(`var')
+	label var mean_`var' "mean of `var' by docid"
+	summ mean_`var'
+}

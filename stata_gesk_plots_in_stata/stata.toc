@@ -1,0 +1,3 @@
+d Files associated with Graphs Everyone Should Know and How to Create Them in Stata, by Franz Buscha
+A Graphs Everyone Should Know and How to Create Them in Stata, by Franz Buscha
+p gesk Do-files for GESK

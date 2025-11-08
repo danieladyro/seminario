@@ -1,0 +1,38 @@
+v 1
+d data.  Datasets 
+d Franz Buscha
+d These are the datasets that were used to produce the output in 
+d the book Graphs Everyone Should Know and How to Create Them in Stata.
+
+f 1.1.1histo.do
+f 1.1.2kernel.do
+f 1.1.3box.do
+f 1.1.4violin.do
+f 1.1.5dotplots.do
+f 1.1.6stem.do
+f 1.1.7diagnostic.do
+f 1.1.8rootogram.do
+f 1.2.1bar.do
+f 1.2.2pie.do
+f 1.2.3radar.do
+f 2.1.1scat.do
+f 2.1.2heat.do
+f 2.1.3line.do
+f 2.1.4area.do
+f 2.1.5fit.do
+f 2.2.1jitter.do
+f 2.2.2table.do
+f 2.2.3bar.do
+f 2.2.4stacked.do
+f 3.1.1matrix.do
+f 3.1.2contour.do
+f 3.1.3heat.do
+f 3.1.4bubble.do
+f 3.1.5chernoff.do
+f 3.1.6tri.do
+f 3.1.73d.do
+f 4.1.1animation.do
+f 4.1.2rainbow.do
+f 4.1.3plotting.do
+f 4.1.4map.do
+f 4.1.5equations.do

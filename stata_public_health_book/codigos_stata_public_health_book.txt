@@ -1,0 +1,388 @@
+* CHAPTER 01
+
+cd C:\ Navigate to the main directory of your hard drive or to
+mkdir new_folder Create a new working directory
+
+cd “/Users/Documents/students”
+cd “C:\new_folder”
+dir
+use cancer
+describe
+insheet using “c:/data.csv”, replace
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter01") firstrow
+
+label variable var1 "id"
+label variable var2 "age"
+label variable var3 "weikg"
+label variable var4 "heimt"
+label variable var5 "sex"
+
+
+* CHAPTER 02 DESCRIPTIVE STATISTICS
+
+list in 5/10
+list id age weikg heimt if age<30
+list id age weikg heimt if age<30
+
+gen bmi = weikg/(heimt^2)
+list id bmi
+gen bmig=bmi
+recode bmig 18.5/24.9=1 25/29.9=2 30/max=3
+list id bmig
+
+replace bmig=1 if bmi >= 18.5 & bmi < 24.5
+replace bmig=2 if bmi >= 24.5 & bmi < 30
+replace bmig=3 if bmi >= 30
+list id bmig
+label define sexc 0 “Male” 1 “Female”
+label value sex sexc
+label define bm 1 “Normal” 2 “Overweight” 3 “Obese”
+label value bmig bm
+list id sex bmig
+label drop sex
+label drop all
+sum age weikg heimt bmi
+sum bmi if age < 30
+sum bmi, detail
+
+tab bmig
+tab bmig sex, co
+tab bmig sex, ro
+
+* CHAPTER 03
+
+sort sex
+gen mbmi=bmi
+gen sbmi=bmi
+collapse (mean) mbmi (sd) sbmi, by(sex)
+gen hbmi = mbmi + sbmi
+twoway (bar mbmi sex) (rcap hbmi mbmi sex), yscale(range(0 40))
+xlabel(none) by(sex, noxrescale) by(,legend(off))
+
+* CHAPTER 04
+
+swilk age weikg heimt bmi
+
+sdtest bmi, by(sex)
+sdtest weikg, by(sex)
+sdtest heimt, by(sex)
+ttest bmi, by(sex)
+kwallis bmi, by(sex)
+
+power twomeans 24.6 32.3, sd1(4.77) sd2(6.91)
+
+sampsi 24.6 32.3, sd1(4.77) sd2(6.91)
+
+sampsi 24.6 32.3, sd1(4.77) sd2(6.91) power(.8)
+
+
+*  CHAPTER 05
+
+twoway (scatter weikg heimt) (lfit weikg heimt),
+xtitle(“Height, mt”) ytitle(“Weight, kg”)
+reg weikg heimt
+
+sum weikg
+sum heimt
+
+*Centering weikg using the result of the previous sum command
+
+gen heimtc=heimt-r(mean)
+reg weikg heimtc
+
+* bootstrap
+
+reg weikg heimtc, vce(boot)
+
+reg bmi age sex
+
+quietly: reg bmi age sex
+test sex
+test age
+
+* prediction 
+
+quietly: reg bmi age sex
+adjust age=30 sex=1, ci
+
+* polynomial regression
+
+quietly: sum age
+gen agec=age-r(mean)
+gen agec2=agec^2
+reg bmi agec
+predict bmiesp1
+reg bmi agec agec2
+predict bmiesp2
+
+twoway (scatter bmi age, sort) (line bmiesp1 age, sort) (line
+bmiesp2 age, sort), ytitle(bmi)
+
+* residuals
+
+reg heimt age
+rvpplot age
+
+* CHAPTER 06 ANOVA
+ 
+table bmig, c(n age mean age sd age)
+
+*  i.bmig prefix for converting a continuos or integer in a categorycal variable
+
+reg age i.bmig
+
+* change reference category
+
+reg age b2.bmig
+
+oneway age bmig
+
+* two way anova 
+
+anova age bmig sex bmig#sex
+
+* comparisons
+
+test 1.bmig=2.bmig
+
+
+* contrastes
+
+test 1.bmig=(2.bmig+3.bmig)/2
+
+* multiple comparisons
+
+oneway age bmig, bon tab
+
+* one way Scheffe
+
+oneway age bmig, sch
+
+*
+
+
+* random effects model
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter06") firstrow clear
+
+* from wide to long
+
+reshape long sb, i(day)
+
+* To run the linear model with random effects, use the loneway command, as follows:
+
+loneway sb day
+
+* power and samples size
+
+power oneway 32.8 27 31.7, varerror(36.5)
+
+
+*CHAPTER 07 CATEGORICAL
+
+* base de datos smoker, alcohol, miocardial infarction
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter07page83") firstrow clear
+
+cs mi alcohol [fw=subjects], by (smoker)
+
+
+* base de datos smoker, hpv, orofaringeal cancer
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter07page85") firstrow clear
+
+cc oc hpv [fw=subjects], by(smoker)
+
+
+* CHAPTER 08 LOGISTIC REGRESION
+
+* database smoker cancer subject 
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter08page91") firstrow clear
+
+glm cancer smoker [fw=subjects], fam(bin)
+
+logit cancer smoker [fw=subjects]
+
+logistic cancer smoker [fw=subjects], coef
+
+binreg cancer smoker [fw=subjects], coef ml
+
+* alternative representation
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter08page94") firstrow clear
+
+glm cases smoker, fam(bin total)
+
+binreg cases smoker, or n(total) ml
+
+* estimating odds ratios
+
+glm cases smoker, fam(bin total) ef nolog noheader
+
+
+* significance test likelihood ratio test
+
+quietly: glm cases smoker, fam(bin total)
+estimates store model1
+quietly: glm cases, fam(bin total)
+lrtest model1
+
+* significance test wald test
+
+glm cases smoker, fam(bin total)
+test smoker
+
+
+* extensiones de logistic regresion
+
+* sex was included as a potential confounding variable
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter08page98") firstrow clear
+
+* with interaction terms. The syntax for doing so is
+
+xi: glm cases i.smoker*i.sex, fam (bin total) nolog noheader
+
+* likelihood ratio test
+
+quietly xi: glm cases i.smoker*i.sex, fam(bin total)
+
+estimates store model1
+
+quietly: glm cases i.smoker, fam(bin total)
+
+lrtest model1
+
+quietly xi: glm cases i.smoker*i.sex, fam(bin total)
+
+*In females
+
+lincom _Ismoker_1 , or
+
+*In males
+lincom _Ismoker_1 + _IsmoXsex_1_1, or
+
+
+* adjusted odds ratio using the previous data is
+
+xi: glm cases i.smoker i.sex, fam (bin total) ef nolog noheader
+
+* When the magnitude of the association between the exposure and the disease is
+* explored in different strata, the user can identify effect modification.
+
+xi: glm cases i.smoker if sex==1, fam (bin total) ef nolog noheader
+xi: glm cases i.smoker if sex==0, fam (bin total) ef nolog noheader
+
+
+
+* prevalence ratios
+
+glm cases i.smoker if sex==1, fam(bin total) ef link(log)
+
+glm cases i.smoker if sex==0, fam(bin total) ef link(log)
+
+*another command
+
+binreg cases smoker if sex==1, n(total) rr nolog
+
+binreg cases smoker if sex==0, n(total) rr nolog
+
+*politomous responses
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter08page104") firstrow clear
+
+* multinomial regression
+
+mlogit hep trans [fw=subjects], rrr
+
+* To use as the reference the subjects with hepatitis B instead of the healthy subjects,
+*you need to use the option baseoutcome, as is done in the following:
+
+mlogit hep trans [fw=subjects], rrr baseoutcome(2)
+
+* ordinal regression
+
+* response quartiles of glycohemoglobin Q1: ≤ 5.4 (best) Q2: >5.4 and ≤ 5.9 Q3: >5.9 (worst) - covariable age ≤45 (0)   >45 (1)
+
+gologit2 glycon3 age [fw=subjects], or
+
+* proportional odds asumption
+
+gologit2 glycon3 age [fw= subjects], or autofit lrf
+
+* CHAPTER 09 POISSON REGRESSION
+
+*  ejemplo CVD, cardiovascular disease; PY, person-years; and I, incidence per 1,000 persons in 1 year
+* Suppose we are interested in assessing the difference in the incidence of cardiovascular
+* disease by sex, controlling for age. Available data for this purpose
+* can be extracted from the epidemiological cohort study of Framingham
+* (Massachusetts), which started in 1948 with a sample of 5,127 subjects, aged
+* 30–62 years old. The following table summarizes the incidence of cardiovascular
+* disease by age and sex
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter09") firstrow clear
+
+* likelihood ratio test
+
+quietly xi: glm cvd i.sex*i.age, fam(poi) lnoff(py)
+estimates store model1
+
+quietly xi: glm cvd i.sex i.age, fam(poi) lnoff(py)
+lrtest model1
+
+xi: glm cvd i.sex*i.age, fam(poisson) lnoff(py)
+
+
+* CHAPTER 10 SURVIVAL
+
+* Let us assume a study aimed at assessing oropharyngeal cancer mortality by sex
+* (1 = Males, 2 = Females), adjusting for tumor stage (1, 2, and 3). Further, let us suppose
+* that we have the observation time (months) after the diagnosis in 87 subjects,
+
+import excel "P:\2022_maestria_infecciosas\SESION_04_JUEVES\bases_stata_book_public_health.xls", sheet("chapter10") firstrow clear
+
+stset time,fa(death=1)
+
+ltable time
+
+ltable time, hazard
+
+sts graph
+
+sts graph, hazard
+
+sts graph, cumhaz
+
+* median survival time
+
+stci, median
+
+stci, p(25)
+
+* kaplam meier by sex
+
+sts graph, by(sex)
+
+
+sts test sex, logrank
+
+sts test sex, wilcoxon
+
+sts test sex, tware
+
+* cox model
+
+quietly xi: stcox i.sex*i.stage
+estimates store model1
+
+quietly xi: stcox i.sex i.stage
+lrtest model1
+
+stcox b1.sex
+
+* b1 before the predictor is to indicate that the category with a code
+* equal to 1 is the reference category.
+
+stcox b1.sex b1.stage
